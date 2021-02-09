@@ -1,6 +1,8 @@
 import logging
 
 import gym
+import matplotlib.pyplot as plt
+import numpy as np
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -9,7 +11,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 if __name__ == '__main__':
 
-    env = gym.make('CarRacing-v0').env
+    #env = gym.make('CarRacing-v0').env
+    env = gym.make('CarRacing-v0')
     env.reset()
 
     total = 0
@@ -19,8 +22,15 @@ if __name__ == '__main__':
         # Show the environment
         env.render()
 
+        # Chose action
         action = env.action_space.sample()
+
+        # Perform action
         observation, reward, done, info = env.step(action)
+
+        # Remove bottom of image
+        observation = observation[:84, :]
+
         total += reward
         print(total)
 
