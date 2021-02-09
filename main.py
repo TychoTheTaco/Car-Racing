@@ -1,73 +1,33 @@
 import logging
-import matplotlib.pyplot as plt
 
 import gym
-import minerl
 
 logging.basicConfig(level=logging.DEBUG)
 
-
-def random_agent():
-    env = gym.make('MineRLNavigateExtremeVectorObf-v0')
-
-    obs = env.reset()
-    print(obs)
-
-    done = False
-
-    x = []
-    angles = []
-
-    i = 0
-    while not done:
-        action = env.action_space.sample()
-        obs, reward, done, _ = env.step(action)
-
-        x.append(i)
-        angles.append(obs['compassAngle'])
-
-        i += 1
-
-    plt.plot(x, angles)
-    plt.show()
-
-
-def good_agent():
-    env = gym.make('MineRLNavigateExtremeVectorObf-v0')
-
-    obs = env.reset()
-    print(obs)
-
-    done = False
-    net_reward = 0
-
-    x = []
-    angles = []
-
-    i = 0
-
-    while not done:
-        action = env.action_space.noop()
-
-        action['camera'] = [0, 0.03 * obs["compassAngle"]]
-        action['back'] = 0
-        action['forward'] = 1
-        action['jump'] = 1
-        action['attack'] = 1
-
-        obs, reward, done, info = env.step(action)
-
-        net_reward += reward
-        print("Total reward: ", net_reward)
-
-        x.append(i)
-        angles.append(obs['compassAngle'])
-
-        i += 1
-
-    plt.plot(x, angles)
-    plt.show()
-
+# Actions: steer, gas, brake
+# Observations: 96x96 rgb
 
 if __name__ == '__main__':
-    good_agent()
+
+    env = gym.make('CarRacing-v0').env
+    env.reset()
+
+    total = 0
+
+    for step in range(1000):
+
+        # Show the environment
+        env.render()
+
+        action = env.action_space.sample()
+        observation, reward, done, info = env.step(action)
+        total += reward
+        print(total)
+
+        if done:
+            print("Episode finished after {} timesteps".format(step))
+            print(info)
+            break
+
+        env.step(env.action_space.sample())
+    env.close()
