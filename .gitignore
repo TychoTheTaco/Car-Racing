@@ -1,0 +1,5 @@
+# Python virtual environment
+venv
+
+# MineRL logs
+logs
