@@ -1,14 +1,14 @@
 from collections import deque
 
-import gym
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers
-from PIL import Image
-from abc import ABC, abstractmethod
-from agents.agents import *
+from agents import *
 import random
+import time
+import cv2
+from pathlib import Path
+import datetime
 
 
 class QLearningAgent(Agent):
@@ -23,9 +23,9 @@ class QLearningAgent(Agent):
         super().on_observation(observation, reward, done)
 
 
-class DeepQNetworkAgent:
+class DeepQNetworkAgent(Agent):
 
-    def __init__(self, env: gym.Env):
+    def __init__(self, env: gym.Env, model_path=None):
         self._env = env
 
         self._learning_rate = 0.001
@@ -35,16 +35,23 @@ class DeepQNetworkAgent:
         self._discount = 0.99
         self._batch_size = 64
 
-        self._model = tf.keras.Sequential([
-            layers.Input(shape=env.observation_space.shape),
-            layers.Dense(512, activation='relu'),
-            layers.Dense(256, activation='relu'),
-            layers.Dense(4, activation='linear')
-        ])
-        self._model.compile(optimizer=tf.optimizers.Adam(learning_rate=self._learning_rate), loss='mse')
+        if model_path is None:
+            self._model = tf.keras.Sequential([
+                layers.Input(shape=env.observation_space.shape),
+                layers.Dense(512, activation='relu'),
+                layers.Dense(256, activation='relu'),
+                layers.Dense(4, activation='linear')
+            ])
+            self._model.compile(optimizer=tf.optimizers.Adam(learning_rate=self._learning_rate), loss='mse')
+        else:
+            self._model = tf.keras.models.load_model(model_path)
         self._model.summary()
 
         self._previous_observation = None
+
+    def get_action(self, observation, action_space: gym.Space):
+        p = self._model.predict(np.array([observation]))
+        return np.argmax(p[0])
 
     # def on_observation(self, observation, reward: float, done: bool, action):
     #
@@ -71,13 +78,20 @@ class DeepQNetworkAgent:
     #     return max(100 / (t + 1), self._min_epsilon)
 
     def train(self, episodes: int = 1000):
+        start_time = time.time()
+
+        model_dir = Path('models', datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
+        model_dir.mkdir(parents=True, exist_ok=True)
+
+        # Episode interval to save the model
+        save_interval = 50
 
         # Keep track of reward earned each episode
         episode_rewards = []
 
         replay_buffer = deque(maxlen=500_000)
 
-        for episode in range(episodes):
+        for episode in range(1, episodes + 1):
 
             # Reset environment
             observation = self._env.reset()
@@ -87,9 +101,6 @@ class DeepQNetworkAgent:
             done = False
             step = 0
             while not done:
-
-                # Show the environment
-                # env.render()
 
                 # Chose action
                 if np.random.rand() < self._epsilon:
@@ -140,8 +151,57 @@ class DeepQNetworkAgent:
             episode_rewards.append(episode_reward)
             print(f'Episode {episode} Reward: {int(episode_reward)} AVG: {np.average(episode_rewards)} EPSILON: {self._epsilon}')
 
+            # Save model
+            if not episode % save_interval:
+                print('Saving model...')
+                self._model.save(model_dir / f'episode-{episode}.h5')
+
         # Close the environment
         self._env.close()
+
+        print(f'Finished training in {(time.time() - start_time) / 60} minutes')
+
+
+def evaluate(env, agent, video_path=None, fps: int = 50):
+    """
+    Evaluate an agent on an environment.
+    :param env:
+    :param agent:
+    :param video_path:
+    :param fps:
+    :return:
+    """
+
+    # Reset environment
+    observation = env.reset()
+    episode_reward = 0
+
+    # Create video writer
+    video_writer = None
+    if video_path is not None:
+        frame = env.render(mode='rgb_array')
+        video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame.shape[1], frame.shape[0]))
+
+    # Simulate steps
+    done = False
+    while not done:
+
+        # Render the environment
+        frame = env.render(mode='rgb_array')
+
+        # Save to video
+        if video_writer is not None:
+            video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+        # Chose action
+        action = agent.get_action(observation, env.action_space)
+
+        # Perform action
+        new_observation, reward, done, info = env.step(action)
+        episode_reward += reward
+
+    if video_writer is not None:
+        video_writer.release()
 
 
 def main():
@@ -150,14 +210,14 @@ def main():
     # Actions: 4 [nothing, left engine, main engine, right engine]
     env = gym.make('LunarLander-v2')
 
-    env.seed(21)
-    np.random.seed(21)
-
     # Create agent
     agent = DeepQNetworkAgent(env)
 
     # Train agent
     agent.train(1000)
+
+    # Evaluate agent
+    evaluate(env, agent, 'video.mp4')
 
 
 if __name__ == '__main__':
