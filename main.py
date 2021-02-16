@@ -2,6 +2,17 @@ from collections import deque
 
 import numpy as np
 import tensorflow as tf
+
+try:
+    # Disable all GPUS
+    tf.config.set_visible_devices([], 'GPU')
+    visible_devices = tf.config.get_visible_devices()
+    for device in visible_devices:
+        assert device.device_type != 'GPU'
+except:
+    # Invalid device or cannot modify virtual devices once initialized.
+    pass
+
 from tensorflow.keras import layers
 from agents import *
 import random
@@ -10,26 +21,16 @@ import cv2
 from pathlib import Path
 import datetime
 
-
-class QLearningAgent(Agent):
-
-    def __init__(self, observation_space: gym.Space, action_space: gym.Space):
-        self._q_table = np.zeros(())
-
-    def get_action(self, observation, action_space: gym.Space):
-        pass
-
-    def on_observation(self, observation, reward: float, done: bool):
-        super().on_observation(observation, reward, done)
+import car_agent
 
 
 class DeepQNetworkAgent(Agent):
 
-    def __init__(self, env: gym.Env, model_path=None):
+    def __init__(self, env: gym.Env, model_path=None, epsilon: float = 1.0):
         self._env = env
 
         self._learning_rate = 0.001
-        self._epsilon = 1
+        self._epsilon = epsilon
         self._min_epsilon = 0.01
         self._epsilon_decay = 0.995
         self._discount = 0.99
@@ -126,7 +127,7 @@ class DeepQNetworkAgent(Agent):
                     states = np.array([x[0] for x in samples])
                     actions = [x[1] for x in samples]
                     rewards = [x[2] for x in samples]
-                    dones = [x[3] for x in samples]
+                    dones = np.array([x[3] for x in samples])
                     new_states = np.array([x[4] for x in samples])
 
                     # Get estimated Q values for initial states
@@ -134,7 +135,7 @@ class DeepQNetworkAgent(Agent):
 
                     # Calculate new Q values
                     max_q_values = np.amax(self._model.predict_on_batch(new_states), axis=1)
-                    new_q_values = rewards + self._discount * max_q_values * (1 - np.array(dones))
+                    new_q_values = rewards + self._discount * max_q_values * (1 - dones)
 
                     # Update target Q values
                     current_q_values[[np.arange(0, self._batch_size)], [actions]] = new_q_values
@@ -208,13 +209,19 @@ def main():
     # Create environment
     # States: 8 [position x, position y, velocity x, velocity y, angle, angular velocity, left leg on ground, right leg on ground]
     # Actions: 4 [nothing, left engine, main engine, right engine]
-    env = gym.make('LunarLander-v2')
+    #env = gym.make('LunarLander-v2')
+
+    from car_racing_environment import CarRacing
+    #env = gym.wrappers.TimeLimit(CarRacing(verbose=0), 1000)
+    env = CarRacing(verbose=0)
+    #env = gym.make('CarRacing-v0')
 
     # Create agent
-    agent = DeepQNetworkAgent(env)
+    #agent = DeepQNetworkAgent(env, model_path='models/2021-02-14-18-06/episode-400.h5', epsilon=0.1346580429260134)
+    agent = car_agent.DeepQNetworkAgent(env, model_path='models/2021-02-15-03-06/episode-1700.h5')
 
     # Train agent
-    agent.train(1000)
+    #agent.train(2000)
 
     # Evaluate agent
     evaluate(env, agent, 'video.mp4')
