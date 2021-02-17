@@ -3,15 +3,15 @@ from collections import deque
 import numpy as np
 import tensorflow as tf
 
-try:
-    # Disable all GPUS
-    tf.config.set_visible_devices([], 'GPU')
-    visible_devices = tf.config.get_visible_devices()
-    for device in visible_devices:
-        assert device.device_type != 'GPU'
-except:
-    # Invalid device or cannot modify virtual devices once initialized.
-    pass
+# try:
+#     # Disable all GPUS
+#     tf.config.set_visible_devices([], 'GPU')
+#     visible_devices = tf.config.get_visible_devices()
+#     for device in visible_devices:
+#         assert device.device_type != 'GPU'
+# except:
+#     # Invalid device or cannot modify virtual devices once initialized.
+#     pass
 
 from tensorflow.keras import layers
 from agents import *
@@ -218,13 +218,13 @@ def main():
 
     # Create agent
     #agent = DeepQNetworkAgent(env, model_path='models/2021-02-14-18-06/episode-400.h5', epsilon=0.1346580429260134)
-    agent = car_agent.DeepQNetworkAgent(env, model_path='models/2021-02-15-03-06/episode-1700.h5')
+    agent = car_agent.DeepQNetworkAgent(env)
 
     # Train agent
-    #agent.train(2000)
+    agent.train(2000)
 
     # Evaluate agent
-    evaluate(env, agent, 'video.mp4')
+    #evaluate(env, agent, 'video.mp4')
 
 
 if __name__ == '__main__':

@@ -21,11 +21,14 @@ class DeepQNetworkAgent(Agent):
         self._min_epsilon = 0.01
         self._epsilon_decay = 0.995
         self._discount = 0.99
-        self._batch_size = 512
+        self._batch_size = 1024
 
         if model_path is None:
             self._model = tf.keras.Sequential([
-                layers.Input(shape=(28, 32, 1)),
+                layers.Input(shape=(42, 48, 4)),
+                layers.Conv2D(32, kernel_size=3, strides=(2, 2), activation='relu'),
+                layers.Conv2D(64, kernel_size=3, activation='relu'),
+                layers.Conv2D(128, kernel_size=3, activation='relu'),
                 layers.Flatten(),
                 layers.Dense(512, activation='relu'),
                 layers.Dense(256, activation='relu'),
@@ -65,7 +68,7 @@ class DeepQNetworkAgent(Agent):
         observation = observation[:84, :, 1]
 
         # Reduce resolution
-        observation = observation[::3, ::3]
+        observation = observation[::2, ::2]
 
         observation = np.array(observation, dtype=np.float32)
 
@@ -84,7 +87,7 @@ class DeepQNetworkAgent(Agent):
         # Keep track of reward earned each episode
         episode_rewards = []
 
-        replay_buffer = deque(maxlen=500_000)
+        replay_buffer = deque(maxlen=100_000)
 
         for episode in range(1, episodes + 1):
 
@@ -93,10 +96,14 @@ class DeepQNetworkAgent(Agent):
             observation = self._get_observation(observation)
             episode_reward = 0
 
+            reward_history = deque(maxlen=100)
+
             # Simulate steps
             done = False
             step = 0
             while not done:
+
+                #self._env.render()
 
                 # Chose action
                 if np.random.rand() < self._epsilon:
@@ -108,24 +115,52 @@ class DeepQNetworkAgent(Agent):
                 # Perform action
                 new_observation, reward, done, info = self._env.step(self._get_continuous_action(discrete_action))
                 new_observation = self._get_observation(new_observation)
+
+                # Modify reward
+                green_check_bounds = new_observation[32:40, 22:26]
+                if np.average(green_check_bounds) >= 120:
+                    reward -= 0.05
+
+                if done:
+                    reward += 100
+
                 episode_reward += reward
 
-                #if step >= 250:
-                #    import matplotlib.pyplot as plt
-                #    plt.imshow(new_observation, cmap='gray')
-                #    plt.show()
+                print(reward, np.average(reward_history))
+                reward_history.append(reward)
+
+                if np.average(reward_history) <= -0.1:
+                    done = True
+
+                # if step >= 350:
+                #     import matplotlib.pyplot as plt
+                #
+                #     box = new_observation[32:40, 22:26]
+                #
+                #     print(new_observation.shape)
+                #     plt.imshow(new_observation, cmap='gray')
+                #     plt.show()
+                #
+                #     print(np.average(box))
+                #     plt.imshow(box, cmap='gray')
+                #     plt.show()
+                #
+                #     cp = np.copy(new_observation)
+                #     cp[32:40, 22:26] = 255
+                #     plt.imshow(cp, cmap='gray')
+                #     plt.show()
 
                 # End early if our score is bad
-                if episode_reward <= -15:
-                    reward = -100
-                    done = True
+                #if episode_reward <= -15:
+                #    reward = -100
+                #    done = True
 
                 # Save transition to replay buffer
                 transition = (observation, discrete_action, reward, done, new_observation)
                 replay_buffer.append(transition)
 
                 # Fit model
-                if len(replay_buffer) >= self._batch_size and (step + 1) % 5 == 0:
+                if len(replay_buffer) >= self._batch_size and (step + 1) % 10 == 0:
 
                     # Get a random sample from the replay buffer
                     samples = random.sample(replay_buffer, self._batch_size)
