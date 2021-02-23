@@ -7,11 +7,10 @@ if __name__ == '__main__':
 
     # Create environment
     env = CustomCarRacing()
-    env.seed(0)
 
     # Create and train agent
     ppo = PPOAgent(env)
-    ppo.train(episodes=3000)
+    ppo.train()
 
     # Evaluate agent
     evaluate(env, ppo, 'video.mp4')

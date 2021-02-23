@@ -128,7 +128,7 @@ class CarRacing(gym.Env, EzPickle):
         )
 
         self.action_space = spaces.Box(
-            np.array([-1, 0, 0]), np.array([+1, +1, +1]), dtype=np.float32
+            np.array([-1.0, 0.0, 0.0], dtype=np.float32), np.array([1.0, 1.0, 1.0], dtype=np.float32), dtype=np.float32
         )  # steer, gas, brake
 
         self.observation_space = spaces.Box(
