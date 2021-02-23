@@ -53,7 +53,7 @@ class PPOAgent(Agent):
               gamma: float = 0.99,
               ppo_epochs: int = 10,
               clip_epsilon: float = 0.1):
-        model_dir = Path(model_dir, datetime.datetime.now().strftime('%Y-%m-%d-%H-%M'))
+        model_dir = Path(model_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
         model_dir.mkdir(parents=True, exist_ok=True)
 
         training_start_time = datetime.datetime.now()
@@ -152,7 +152,15 @@ class PPOAgent(Agent):
         print('Total training time:', training_end_time - training_start_time)
         np.savetxt(model_dir / 'rewards.txt', episode_rewards)
 
-        plt.plot(np.arange(len(episode_rewards)), episode_rewards)
+        # Plot statistics
+        x_axis = np.arange(len(episode_rewards))
+        plt.plot(x_axis, episode_rewards, label='Episode reward')
+        moving_averages = [np.mean(episode_rewards[-50:i + 1]) for i in range(len(episode_rewards))]
+        plt.plot(x_axis, moving_averages, color='red', label='50-episode moving average')
+        plt.title('Training Performance')
+        plt.xlabel('Episode')
+        plt.ylabel('Score')
+        plt.legend(loc='upper left')
         plt.savefig(model_dir / 'rewards.jpg')
         plt.show()
 

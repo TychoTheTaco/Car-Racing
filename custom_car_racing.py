@@ -12,7 +12,7 @@ class CustomCarRacing(CarRacing):
     def __init__(self, image_stack_size=4, step_repeat=8):
         """
         Create a new environment.
-        :param image_stack_size: The number of frames to "stack" together into a single observation.
+        :param image_stack_size: The number of frames to "stack" together into a single observation. This is useful for getting velocity information.
         :param step_repeat: The number of times to repeat internal calls to step() for every external call. This greatly speeds up training since each frame is very similar. From
         the outside it will appear as if the environment is running at FPS / STEP_REPEAT frames per second, where FPS is the original FPS of the environment.
         """
