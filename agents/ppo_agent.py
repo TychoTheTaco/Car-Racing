@@ -10,15 +10,14 @@ from typing import Union, Optional
 import matplotlib.pyplot as plt
 
 
-try:
-    # Disable all GPUS
-    tf.config.set_visible_devices([], 'GPU')
-    visible_devices = tf.config.get_visible_devices()
-    for device in visible_devices:
-        assert device.device_type != 'GPU'
-except:
-    # Invalid device or cannot modify virtual devices once initialized.
-    pass
+# Disable all GPUs
+tf.config.set_visible_devices([], 'GPU')
+visible_devices = tf.config.get_visible_devices()
+for device in visible_devices:
+    assert device.device_type != 'GPU'
+
+tf.random.set_seed(0)
+np.random.seed(0)
 
 
 class PPOAgent(Agent):
@@ -35,9 +34,8 @@ class PPOAgent(Agent):
         self._model.summary()
 
     def get_action(self, observation, action_space: gym.Space):
-        observation = np.expand_dims(observation, axis=0)
-        alpha_beta = self._model.predict(observation)[0][0]
-        alpha, beta = alpha_beta[:, 0], alpha_beta[:, 1]
+        p = self._model.predict(np.expand_dims(observation, axis=0))[0][0]
+        alpha, beta = p[:, 0], p[:, 1]
         distribution = Beta(alpha, beta)
         action = distribution.sample().numpy()
         action[0] = np.interp(action[0], [0, 1], [-1, 1])
@@ -61,6 +59,7 @@ class PPOAgent(Agent):
 
         # Keep track of some stats
         episode_rewards = []
+        moving_average_range = 50
 
         transitions = []
 
@@ -147,6 +146,9 @@ class PPOAgent(Agent):
             if not episode % save_interval:
                 self._model.save(model_dir / f'episode-{episode}.h5')
 
+        # Save final model
+        self._model.save(model_dir / 'model.h5')
+
         training_end_time = datetime.datetime.now()
         print('Finished training at', training_end_time.strftime('%d-%m-%Y %H:%M:%S'))
         print('Total training time:', training_end_time - training_start_time)
@@ -154,9 +156,10 @@ class PPOAgent(Agent):
 
         # Plot statistics
         x_axis = np.arange(len(episode_rewards))
+        plt.figure(1, figsize=(16, 9))
         plt.plot(x_axis, episode_rewards, label='Episode reward')
-        moving_averages = [np.mean(episode_rewards[-50:i + 1]) for i in range(len(episode_rewards))]
-        plt.plot(x_axis, moving_averages, color='red', label='50-episode moving average')
+        moving_averages = [np.mean(episode_rewards[i - (moving_average_range - 1):i + 1]) if i >= (moving_average_range - 1) else np.mean(episode_rewards[:i + 1]) for i in range(len(episode_rewards))]
+        plt.plot(x_axis, moving_averages, color='red', label=f'{moving_average_range}-episode moving average')
         plt.title('Training Performance')
         plt.xlabel('Episode')
         plt.ylabel('Score')
@@ -170,7 +173,7 @@ class PPOAgent(Agent):
             return layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, activation='relu', kernel_initializer=tf.initializers.glorot_normal(),
                                  bias_initializer=tf.initializers.constant(0.1))
 
-        # Input is a stack of 4 (32 by 32) frames
+        # Input is a stack of frames
         input_0 = layers.Input(shape=(32, 32, 4))
 
         # Main network backbone. This is shared by the actor and critic.

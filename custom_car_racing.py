@@ -58,7 +58,7 @@ class CustomCarRacing(CarRacing):
             self._image_stack.append(observation)
 
         # Convert image stack to numpy array
-        image_stack_array = np.empty((32, 32, 4))
+        image_stack_array = np.empty((32, 32, self._image_stack_size))
         for i in range(self._image_stack_size):
             image_stack_array[..., i] = self._image_stack[i]
 

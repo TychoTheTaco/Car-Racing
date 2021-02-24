@@ -16,43 +16,56 @@ class Agent(ABC):
         raise NotImplementedError
 
 
-def evaluate(env, agent, video_path=None, fps: int = 50):
+def evaluate(env, agent, video_path=None, fps: int = 50, render=True, episodes: int = 1):
     """
     Evaluate an agent in an environment.
     :param env:
     :param agent:
     :param video_path:
     :param fps:
+    :param render:
     :return:
     """
-
-    # Reset environment
-    observation = env.reset()
-    episode_reward = 0
-
-    # Create video writer
     video_writer = None
-    if video_path is not None:
-        frame = env.render(mode='rgb_array')
-        video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame.shape[1], frame.shape[0]))
 
-    # Simulate steps
-    done = False
-    while not done:
+    for episode in range(episodes):
 
-        # Render the environment
-        frame = env.render(mode='rgb_array')
+        # Reset environment
+        observation = env.reset()
+        episode_reward = 0
 
-        # Save to video
-        if video_writer is not None:
-            video_writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        # Create video writer
+        if video_writer is None and video_path is not None:
+            frame = env.render(mode='rgb_array')
+            video_writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame.shape[1], frame.shape[0]))
 
-        # Chose action
-        action = agent.get_action(observation, env.action_space)
+        # Simulate steps
+        done = False
+        while not done:
 
-        # Perform action
-        new_observation, reward, done, info = env.step(action)
-        episode_reward += reward
+            # Render the environment
+            frame = env.render(mode='rgb_array')
+            if render:
+                env.render()
+
+            # Chose action
+            action = agent.get_action(observation, env.action_space)
+
+            # Save to video
+            if video_writer is not None:
+                bgr_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                cv2.putText(bgr_frame, f'S: {action[0]:.02f}', (540, 365), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(bgr_frame, f'G: {action[1]:.02f}', (540, 380), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+                cv2.putText(bgr_frame, f'B: {action[2]:.02f}', (540, 395), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
+                video_writer.write(bgr_frame)
+
+            # Perform action
+            new_observation, reward, done, info = env.step(action)
+            episode_reward += reward
+
+            observation = new_observation
+
+        print(f'Episode {episode} | Score: {episode_reward:.02f}')
 
     if video_writer is not None:
         video_writer.release()
