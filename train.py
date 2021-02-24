@@ -14,6 +14,9 @@ visible_devices = tf.config.get_visible_devices()
 for device in visible_devices:
     assert device.device_type != 'GPU'
 
+tf.random.set_seed(0)
+np.random.seed(0)
+
 
 def create_model():
 
@@ -32,18 +35,19 @@ def create_model():
     flat_0 = layers.Flatten()(conv_3)
 
     # Actor output
-    dense_0 = layers.Dense(32, activation='relu')(flat_0)
+    dense_0 = layers.Dense(64, activation='relu')(flat_0)
     dense_1 = layers.Dense(6, activation='softplus')(dense_0)
     reshape_0 = layers.Reshape((3, 2))(dense_1)
     lamb_0 = layers.Lambda(lambda x: x + 1)(reshape_0)  # Ensure alpha and beta are > 1
 
     # Critic output
-    dense_2 = layers.Dense(32, activation='relu')(flat_0)
+    dense_2 = layers.Dense(64, activation='relu')(flat_0)
     dense_3 = layers.Dense(1)(dense_2)
 
     # Compile model
     model = tf.keras.Model(inputs=[input_0], outputs=[lamb_0, dense_3])
     model.compile(optimizer=tf.optimizers.Adam(0.001))
+    model.summary()
 
     return model
 
@@ -62,11 +66,13 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
     training_start_time = datetime.datetime.now()
     print('Started training at', training_start_time.strftime('%d-%m-%Y %H:%M:%S'))
     episode_rewards = []
+    moving_average_range = 50
 
     transitions = []
 
     # Create environment
     env = CustomCarRacing()
+    env.seed(0)
 
     for episode in range(episodes):
 
@@ -149,12 +155,24 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
         if not episode % save_interval:
             model.save(model_dir / f'episode-{episode}.h5')
 
+    # Save final model
+    model.save(model_dir / 'model.h5')
+
     training_end_time = datetime.datetime.now()
     print('Finished training at', training_end_time.strftime('%d-%m-%Y %H:%M:%S'))
     print('Total training time:', training_end_time - training_start_time)
     np.savetxt(model_dir / 'rewards.txt', episode_rewards)
 
-    plt.plot(np.arange(len(episode_rewards)), episode_rewards)
+    # Plot statistics
+    x_axis = np.arange(len(episode_rewards))
+    plt.figure(1, figsize=(16, 9))
+    plt.plot(x_axis, episode_rewards, label='Episode reward')
+    moving_averages = [np.mean(episode_rewards[i - (moving_average_range - 1):i + 1])if i >= (moving_average_range - 1) else np.mean(episode_rewards[:i + 1]) for i in range(len(episode_rewards))]
+    plt.plot(x_axis, moving_averages, color='red', label=f'{moving_average_range}-episode moving average')
+    plt.title('Training Performance')
+    plt.xlabel('Episode')
+    plt.ylabel('Score')
+    plt.legend(loc='upper left')
     plt.savefig(model_dir / 'rewards.jpg')
     plt.show()
 
