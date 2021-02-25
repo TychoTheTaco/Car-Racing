@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import gym
 import cv2
+import numpy as np
 
 
 class Agent(ABC):
@@ -16,7 +17,7 @@ class Agent(ABC):
         raise NotImplementedError
 
 
-def evaluate(env, agent, video_path=None, fps: int = 50, render=True, episodes: int = 1):
+def evaluate(env, agent, video_path=None, fps: int = 50, render=True, episodes: int = 1, render_observation_video: bool = False):
     """
     Evaluate an agent in an environment.
     :param env:
@@ -24,9 +25,17 @@ def evaluate(env, agent, video_path=None, fps: int = 50, render=True, episodes: 
     :param video_path:
     :param fps:
     :param render:
+    :param episodes:
+    :param render_observation_video:
     :return:
     """
     video_writer = None
+    observation_video_writer = None
+
+    # Create observation video writer
+    combined_observation = np.zeros((32 * 2, 32 * 2), dtype=np.uint8)
+    if render_observation_video and video_path is not None:
+        observation_video_writer = cv2.VideoWriter('observation-' + video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (combined_observation.shape[1], combined_observation.shape[0]))
 
     for episode in range(episodes):
 
@@ -43,13 +52,25 @@ def evaluate(env, agent, video_path=None, fps: int = 50, render=True, episodes: 
         done = False
         while not done:
 
+            # Save observation to video
+            if observation_video_writer is not None:
+                combined_observation[:32, :32] = np.interp(observation[..., 0], [-1, 1], [0, 1]) * 255
+                combined_observation[:32, 32:] = np.interp(observation[..., 1], [-1, 1], [0, 1]) * 255
+                combined_observation[32:, :32] = np.interp(observation[..., 2], [-1, 1], [0, 1]) * 255
+                combined_observation[32:, 32:] = np.interp(observation[..., 3], [-1, 1], [0, 1]) * 255
+                observation_video_writer.write(cv2.cvtColor(combined_observation, cv2.COLOR_GRAY2BGR))
+
+            # Chose action
+            action = agent.get_action(observation, env.action_space)
+
+            # Perform action
+            new_observation, reward, done, info = env.step(action)
+            episode_reward += reward
+
             # Render the environment
             frame = env.render(mode='rgb_array')
             if render:
                 env.render()
-
-            # Chose action
-            action = agent.get_action(observation, env.action_space)
 
             # Save to video
             if video_writer is not None:
@@ -59,13 +80,11 @@ def evaluate(env, agent, video_path=None, fps: int = 50, render=True, episodes: 
                 cv2.putText(bgr_frame, f'B: {action[2]:.02f}', (540, 395), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, cv2.LINE_AA)
                 video_writer.write(bgr_frame)
 
-            # Perform action
-            new_observation, reward, done, info = env.step(action)
-            episode_reward += reward
-
             observation = new_observation
 
         print(f'Episode {episode} | Score: {episode_reward:.02f}')
 
     if video_writer is not None:
         video_writer.release()
+    if observation_video_writer is not None:
+        observation_video_writer.release()

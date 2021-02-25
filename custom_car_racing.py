@@ -40,7 +40,12 @@ class CustomCarRacing(CarRacing):
 
             # Punish the agent for going off of the track
             if np.mean(observation[64:80, 42:54, 1]) > 120:
-                reward -= 0.05
+                reward -= 0.25
+
+            # Punish brake usage
+            #if action is not None:
+            #    punish = np.interp(action[2], [0, 1], [0, 0.1])
+            #    reward -= punish
 
             # End early if the agent consistently does poorly
             self._reward_history.append(reward)
@@ -58,7 +63,7 @@ class CustomCarRacing(CarRacing):
             self._image_stack.append(observation)
 
         # Convert image stack to numpy array
-        image_stack_array = np.empty((32, 32, self._image_stack_size))
+        image_stack_array = np.empty((32, 32, self._image_stack_size), dtype=np.float32)
         for i in range(self._image_stack_size):
             image_stack_array[..., i] = self._image_stack[i]
 
@@ -70,10 +75,8 @@ class CustomCarRacing(CarRacing):
         # Keep only the green channel of the RGB image and reduce the resolution
         observation = observation[::3, ::3, 1]
 
-        # Convert to float
-        observation = observation.astype(np.float32)
-
         # Normalize values between -1 and 1
         observation = (observation / 128) - 1
 
-        return observation
+        # Convert to float
+        return observation.astype(np.float32)

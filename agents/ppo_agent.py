@@ -16,9 +16,6 @@ visible_devices = tf.config.get_visible_devices()
 for device in visible_devices:
     assert device.device_type != 'GPU'
 
-tf.random.set_seed(0)
-np.random.seed(0)
-
 
 class PPOAgent(Agent):
 
@@ -51,7 +48,7 @@ class PPOAgent(Agent):
               gamma: float = 0.99,
               ppo_epochs: int = 10,
               clip_epsilon: float = 0.1):
-        model_dir = Path(model_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
+        model_dir = Path(model_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
         model_dir.mkdir(parents=True, exist_ok=True)
 
         training_start_time = datetime.datetime.now()
@@ -63,7 +60,7 @@ class PPOAgent(Agent):
 
         transitions = []
 
-        for episode in range(episodes):
+        for episode in range(1, episodes + 1):
 
             # Reset environment
             observation = self._env.reset()
@@ -93,7 +90,7 @@ class PPOAgent(Agent):
                     states = tf.convert_to_tensor([x[0] for x in transitions])
                     actions = tf.convert_to_tensor([x[1] for x in transitions])
                     old_a_logp = tf.expand_dims(tf.convert_to_tensor([x[2] for x in transitions]), axis=1)
-                    rewards = tf.expand_dims(tf.convert_to_tensor([x[3] for x in transitions]), axis=1)
+                    rewards = tf.expand_dims(tf.convert_to_tensor([x[3] for x in transitions], dtype=np.float32), axis=1)
                     new_states = tf.convert_to_tensor([x[4] for x in transitions])
 
                     target_v = rewards + gamma * self._model(new_states)[1]
@@ -180,8 +177,7 @@ class PPOAgent(Agent):
         conv_0 = create_conv_layer(8, 4, 2)(input_0)
         conv_1 = create_conv_layer(16, 3, 2)(conv_0)
         conv_2 = create_conv_layer(32, 3, 2)(conv_1)
-        conv_3 = create_conv_layer(64, 3, 1)(conv_2)
-        flat_0 = layers.Flatten()(conv_3)
+        flat_0 = layers.Flatten()(conv_2)
 
         # Actor output
         dense_0 = layers.Dense(64, activation='relu')(flat_0)

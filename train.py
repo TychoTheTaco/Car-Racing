@@ -14,12 +14,8 @@ visible_devices = tf.config.get_visible_devices()
 for device in visible_devices:
     assert device.device_type != 'GPU'
 
-tf.random.set_seed(0)
-np.random.seed(0)
-
 
 def create_model():
-
     def create_conv_layer(filters, kernel_size, strides):
         return layers.Conv2D(filters, kernel_size=kernel_size, strides=strides, activation='relu', kernel_initializer=tf.initializers.glorot_normal(),
                              bias_initializer=tf.initializers.constant(0.1))
@@ -31,8 +27,7 @@ def create_model():
     conv_0 = create_conv_layer(8, 4, 2)(input_0)
     conv_1 = create_conv_layer(16, 3, 2)(conv_0)
     conv_2 = create_conv_layer(32, 3, 2)(conv_1)
-    conv_3 = create_conv_layer(64, 3, 1)(conv_2)
-    flat_0 = layers.Flatten()(conv_3)
+    flat_0 = layers.Flatten()(conv_2)
 
     # Actor output
     dense_0 = layers.Dense(64, activation='relu')(flat_0)
@@ -54,7 +49,6 @@ def create_model():
 
 def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models', save_interval: int = 100, buffer_size: int = 2000, batch_size: int = 128, gamma: float = 0.99,
           ppo_epochs: int = 10, clip_epsilon: float = 0.1):
-
     # Create model checkpoint directory
     model_dir = Path(model_dir, datetime.datetime.now().strftime('%Y-%m-%d_%H-%M'))
     model_dir.mkdir(parents=True, exist_ok=True)
@@ -72,7 +66,6 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
 
     # Create environment
     env = CustomCarRacing()
-    env.seed(0)
 
     for episode in range(episodes):
 
@@ -91,7 +84,7 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
             log_prob = tf.reduce_sum(beta_distribution.log_prob(action))
 
             A = action.numpy()
-            A[0] = np.interp(A[0], [0., 1.], [-1., 1.])
+            A[0] = np.interp(A[0], [0, 1], [-1, 1])
 
             # Perform action
             new_observation, reward, done, _ = env.step(A)
@@ -167,7 +160,8 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
     x_axis = np.arange(len(episode_rewards))
     plt.figure(1, figsize=(16, 9))
     plt.plot(x_axis, episode_rewards, label='Episode reward')
-    moving_averages = [np.mean(episode_rewards[i - (moving_average_range - 1):i + 1])if i >= (moving_average_range - 1) else np.mean(episode_rewards[:i + 1]) for i in range(len(episode_rewards))]
+    moving_averages = [np.mean(episode_rewards[i - (moving_average_range - 1):i + 1]) if i >= (moving_average_range - 1) else np.mean(episode_rewards[:i + 1]) for i in
+                       range(len(episode_rewards))]
     plt.plot(x_axis, moving_averages, color='red', label=f'{moving_average_range}-episode moving average')
     plt.title('Training Performance')
     plt.xlabel('Episode')
@@ -178,4 +172,4 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
 
 
 if __name__ == '__main__':
-    train()
+    train(episodes=2000, batch_size=256)

@@ -1,6 +1,6 @@
-import gym
 from agents import evaluate
-from agents.ppo_agent import PPOAgent, CustomCarRacing
+from agents.ppo_agent import PPOAgent
+from custom_car_racing import CustomCarRacing
 
 
 if __name__ == '__main__':
@@ -9,8 +9,9 @@ if __name__ == '__main__':
     env = CustomCarRacing()
 
     # Create and train agent
-    ppo = PPOAgent(env)
-    ppo.train()
+    agent = PPOAgent(env)
+    agent.train(episodes=2000)
 
     # Evaluate agent
-    evaluate(env, ppo, 'video.mp4')
+    env = CustomCarRacing(step_repeat=1)
+    evaluate(env, agent, 'video.mp4')
