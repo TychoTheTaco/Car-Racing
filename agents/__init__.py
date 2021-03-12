@@ -2,12 +2,13 @@ from abc import ABC, abstractmethod
 import gym
 import cv2
 import numpy as np
+from typing import Any
 
 
 class Agent(ABC):
 
     @abstractmethod
-    def get_action(self, observation, action_space: gym.Space):
+    def get_action(self, observation: Any, action_space: gym.Space) -> Any:
         """
         Get a valid action from the action space.
         :param observation: The current observation of the environment.

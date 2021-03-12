@@ -93,8 +93,8 @@ class PPOAgent(Agent):
                     rewards = tf.expand_dims(tf.convert_to_tensor([x[3] for x in transitions], dtype=np.float32), axis=1)
                     new_states = tf.convert_to_tensor([x[4] for x in transitions])
 
-                    target_v = rewards + gamma * self._model(new_states)[1]
-                    adv = target_v - self._model(states)[1]
+                    discounted_rewards = rewards + gamma * self._model(new_states)[1]
+                    adv = discounted_rewards - self._model(states)[1]
 
                     def gen_batches(indices, batch_size):
                         for i in range(0, len(indices), batch_size):
@@ -119,9 +119,11 @@ class PPOAgent(Agent):
                                 action_loss = tf.reduce_mean(-tf.minimum(surr1, surr2))
 
                                 # Calculate value loss
-                                one = self._model(tf.gather(states, batch))[1]
-                                two = tf.gather(target_v, batch)
-                                value_loss = tf.reduce_mean(tf.losses.mse(two, one))
+                                value_loss = tf.reduce_mean(
+                                    tf.losses.mse(
+                                        tf.gather(discounted_rewards, batch),
+                                        self._model(tf.gather(states, batch))[1]
+                                    ))
 
                                 # Calculate combined loss
                                 loss = action_loss + 2 * value_loss

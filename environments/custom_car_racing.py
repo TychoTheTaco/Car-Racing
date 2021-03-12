@@ -43,9 +43,9 @@ class CustomCarRacing(CarRacing):
                 reward -= 0.25
 
             # Punish brake usage
-            #if action is not None:
-            #    punish = np.interp(action[2], [0, 1], [0, 0.1])
-            #    reward -= punish
+            if action is not None:
+                punish = np.interp(action[2], [0, 1], [0, 0.05])
+                reward -= punish
 
             # End early if the agent consistently does poorly
             self._reward_history.append(reward)

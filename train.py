@@ -5,7 +5,7 @@ from tensorflow.keras import layers
 
 import numpy as np
 from pathlib import Path
-from custom_car_racing import CustomCarRacing
+from environments.custom_car_racing import CustomCarRacing
 import matplotlib.pyplot as plt
 
 # Disable all GPUs
@@ -97,7 +97,7 @@ def train(episodes: int = 1000, log_interval: int = 10, model_dir: str = 'models
                 states = tf.convert_to_tensor([x[0] for x in transitions])
                 actions = tf.convert_to_tensor([x[1] for x in transitions])
                 old_a_logp = tf.expand_dims(tf.convert_to_tensor([x[2] for x in transitions]), axis=1)
-                rewards = tf.expand_dims(tf.convert_to_tensor([x[3] for x in transitions]), axis=1)
+                rewards = tf.expand_dims(tf.convert_to_tensor([x[3] for x in transitions], dtype=np.float32), axis=1)
                 new_states = tf.convert_to_tensor([x[4] for x in transitions])
 
                 target_v = rewards + gamma * model(new_states)[1]
