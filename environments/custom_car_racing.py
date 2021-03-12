@@ -1,5 +1,5 @@
 from collections import deque
-from car_racing_environment import CarRacing
+from environments.car_racing_environment import CarRacing
 import numpy as np
 
 
